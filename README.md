@@ -4,8 +4,6 @@ Unofficial local voice interface for Codex CLI.
 
 Codex Live Assistant Mode turns a local Codex CLI session into a voice-first assistant. The browser records your voice, the local Node bridge sends audio to OpenRouter for STT, the transcript goes to Codex CLI, live activity is streamed back to the UI, and the final answer is spoken through OpenRouter TTS.
 
-This project is not affiliated with OpenAI.
-
 ## Screenshots
 
 ![Desktop screenshot](docs/assets/desktop.png)
