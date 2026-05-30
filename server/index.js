@@ -727,7 +727,7 @@ async function handleTranscribe(request, response) {
   })
   const payload = await upstream.json().catch(() => ({}))
   if (!upstream.ok) {
-    sendJson(response, upstream.status, { error: payload.error?.message || 'OpenRouter transcription failed' })
+    sendJson(response, upstream.status, { error: safePreview(payload.error?.message || 'OpenRouter transcription failed') })
     return
   }
 
@@ -774,7 +774,7 @@ async function handleSpeech(request, response) {
 
   if (!upstream.ok) {
     const payload = await upstream.json().catch(() => ({}))
-    sendJson(response, upstream.status, { error: payload.error?.message || 'OpenRouter speech failed' })
+    sendJson(response, upstream.status, { error: safePreview(payload.error?.message || 'OpenRouter speech failed') })
     return
   }
 
@@ -1171,6 +1171,7 @@ async function handleCodexMessage(request, response) {
     turns: 0,
   }
   const outputFile = join(localDir, `codex-final-${randomUUID()}.txt`)
+  const cleanupOutputFile = () => unlink(outputFile).catch(() => undefined)
   const args = buildCodexArgs({ codexSessionId: session.codexSessionId, outputFile, settings })
   const prompt = buildModePrompt(mode, text)
   const bridgeTurnId = randomUUID()
@@ -1279,6 +1280,7 @@ async function handleCodexMessage(request, response) {
   const abortChild = () => {
     if (!closed) {
       stopHeartbeat()
+      void cleanupOutputFile()
       stopProcessTree(child)
     }
   }
@@ -1321,11 +1323,12 @@ async function handleCodexMessage(request, response) {
 
   child.on('error', (error) => {
     stopHeartbeat()
+    void cleanupOutputFile()
     if (requestedActivity && requestedActivityId) {
       sendActivity(bridgeActivityPayload(requestedActivity, requestedActivityId, 'error'))
       sendTerminalEvent('error', terminalStatusText(requestedActivity, 'error'), `${requestedActivityId}:error`)
     }
-    sendErrorEvent(error.message)
+    sendErrorEvent(safePreview(error.message))
     endResponse()
   })
 
@@ -1333,11 +1336,12 @@ async function handleCodexMessage(request, response) {
     closed = true
     stopHeartbeat()
     if (code !== 0) {
+      await cleanupOutputFile()
       if (requestedActivity && requestedActivityId) {
         sendActivity(bridgeActivityPayload(requestedActivity, requestedActivityId, 'error'))
         sendTerminalEvent('error', terminalStatusText(requestedActivity, 'error'), `${requestedActivityId}:error`)
       }
-      sendErrorEvent(stderrBuffer.trim() || `Codex exited with code ${code}`)
+      sendErrorEvent(safePreview(stderrBuffer.trim() || `Codex exited with code ${code}`))
       endResponse()
       return
     }
@@ -1348,7 +1352,7 @@ async function handleCodexMessage(request, response) {
     } catch {
       finalText = ''
     }
-    await unlink(outputFile).catch(() => undefined)
+    await cleanupOutputFile()
 
     session.codexSessionId = codexSessionId
     session.updatedAt = new Date().toISOString()
