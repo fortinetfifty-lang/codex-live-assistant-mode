@@ -132,6 +132,14 @@ The app stores local session metadata under `.local/`. Codex session persistence
 - Codex remaining usage limits depend on the official app-server rate-limit protocol. If unavailable, the app shows a safe dashboard fallback.
 - Write-capable workspace mode is intentionally out of scope for the first public version.
 
+## Troubleshooting
+
+On Windows, if clicking an old Codex notification opens an Electron
+`type=click&tag=...` error dialog, see
+[docs/windows-notifications.md](docs/windows-notifications.md). The bridge
+disables notifications for its own Codex child processes, but stale/global
+Codex Desktop notifications may still need to be cleared or disabled locally.
+
 ## Disclaimer
 
 This app can be useful for reflection, planning, research, and coding help. It is not therapy, medical care, emergency support, or a replacement for professional help.
