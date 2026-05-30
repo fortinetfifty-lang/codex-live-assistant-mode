@@ -19,6 +19,11 @@ const port = Number(process.env.PORT || 8787)
 const reasoningEfforts = new Set(['medium', 'high', 'xhigh'])
 const modePresets = new Set(['fast', 'normal', 'deep'])
 const codexUsageDashboardUrl = 'https://chatgpt.com/codex/settings/usage'
+const codexRuntimeConfigOverrides = [
+  'desktop.notifications-turn-mode="never"',
+  'desktop.notifications-permissions-enabled=false',
+  'desktop.notifications-questions-enabled=false',
+]
 
 if (host !== '127.0.0.1' && process.env.ALLOW_REMOTE_LISTEN !== 'true') {
   throw new Error('Remote listening is disabled. Set ALLOW_REMOTE_LISTEN=true only for hardened deployments.')
@@ -412,7 +417,7 @@ function createUsageFromRateLimitSnapshot(snapshot) {
 
 function requestCodexAppServer(method, params, timeoutMs = 8000) {
   return new Promise((resolveRequest, rejectRequest) => {
-    const child = spawn('codex', ['app-server', '--listen', 'stdio://'], {
+    const child = spawn('codex', [...buildCodexRuntimeConfigArgs(), 'app-server', '--listen', 'stdio://'], {
       shell: process.platform === 'win32',
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
@@ -887,9 +892,13 @@ User transcript:
 ${text}`
 }
 
+function buildCodexRuntimeConfigArgs() {
+  return codexRuntimeConfigOverrides.flatMap((override) => ['-c', override])
+}
+
 function buildCodexArgs({ codexSessionId, outputFile, settings }) {
   const { model, reasoningEffort, searchEnabled, workspace } = settings.codex
-  const args = []
+  const args = buildCodexRuntimeConfigArgs()
 
   if (searchEnabled) args.push('--search')
   args.push('--ask-for-approval', 'never')
