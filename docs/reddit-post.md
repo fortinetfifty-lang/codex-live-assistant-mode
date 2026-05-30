@@ -10,4 +10,4 @@ It is a local-only voice interface for Codex CLI: browser mic input, OpenRouter 
 
 I am not trying to bother the Codex team or maintainers. I am sharing it as a suggestion and experiment. If it is useful to anyone, or if it gives the team ideas for an official live assistant mode, I would be happy.
 
-Repo: <repo link>
+Repo: https://github.com/fortinetfifty-lang/codex-live-assistant-mode

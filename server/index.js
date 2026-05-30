@@ -18,6 +18,7 @@ const host = process.env.HOST || '127.0.0.1'
 const port = Number(process.env.PORT || 8787)
 const reasoningEfforts = new Set(['medium', 'high', 'xhigh'])
 const modePresets = new Set(['fast', 'normal', 'deep'])
+const codexUsageDashboardUrl = 'https://chatgpt.com/codex/settings/usage'
 
 if (host !== '127.0.0.1' && process.env.ALLOW_REMOTE_LISTEN !== 'true') {
   throw new Error('Remote listening is disabled. Set ALLOW_REMOTE_LISTEN=true only for hardened deployments.')
@@ -314,6 +315,187 @@ function stopProcessTree(child) {
   child.kill()
 }
 
+function parseJsonLines(buffer, onMessage) {
+  const lines = buffer.split('\n')
+  const rest = lines.pop() || ''
+  for (const line of lines) {
+    if (!line.trim()) continue
+    onMessage(JSON.parse(line))
+  }
+  return rest
+}
+
+function clampPercent(value) {
+  const percent = Number(value)
+  if (!Number.isFinite(percent)) return null
+  return Math.min(100, Math.max(0, Math.round(percent)))
+}
+
+function normalizeRateLimitWindow(window, label) {
+  if (!window || typeof window !== 'object') {
+    return {
+      label,
+      status: 'unavailable',
+      usedPercent: null,
+      remainingPercent: null,
+      resetAt: null,
+    }
+  }
+
+  const usedPercent = clampPercent(window.usedPercent)
+  const resetSeconds = Number(window.resetsAt)
+  return {
+    label,
+    status: 'available',
+    usedPercent,
+    remainingPercent: usedPercent === null ? null : Math.max(0, 100 - usedPercent),
+    resetAt: Number.isFinite(resetSeconds) && resetSeconds > 0 ? new Date(resetSeconds * 1000).toISOString() : null,
+    windowDurationMins: Number.isFinite(Number(window.windowDurationMins)) ? Number(window.windowDurationMins) : null,
+  }
+}
+
+function pickCodexRateLimitSnapshot(payload) {
+  if (!payload || typeof payload !== 'object') return undefined
+  const byLimitId = payload.rateLimitsByLimitId
+  if (byLimitId && typeof byLimitId === 'object' && byLimitId.codex) return byLimitId.codex
+  return payload.rateLimits
+}
+
+function createUnavailableUsage(reason, auth = { loggedIn: false, status: 'unknown' }) {
+  return {
+    source: 'codex-app-server',
+    available: false,
+    reason,
+    dashboardUrl: codexUsageDashboardUrl,
+    fiveHour: {
+      label: '5h',
+      status: 'unavailable',
+      usedPercent: null,
+      remainingPercent: null,
+      resetAt: null,
+    },
+    weekly: {
+      label: 'Weekly',
+      status: 'unavailable',
+      usedPercent: null,
+      remainingPercent: null,
+      resetAt: null,
+    },
+    auth,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+function createUsageFromRateLimitSnapshot(snapshot) {
+  return {
+    source: 'codex-app-server',
+    available: true,
+    dashboardUrl: codexUsageDashboardUrl,
+    limitName: snapshot?.limitName || null,
+    planType: snapshot?.planType || null,
+    rateLimitReachedType: snapshot?.rateLimitReachedType || null,
+    credits: snapshot?.credits
+      ? {
+          hasCredits: Boolean(snapshot.credits.hasCredits),
+          unlimited: Boolean(snapshot.credits.unlimited),
+        }
+      : null,
+    fiveHour: normalizeRateLimitWindow(snapshot?.primary, '5h'),
+    weekly: normalizeRateLimitWindow(snapshot?.secondary, 'Weekly'),
+    auth: {
+      loggedIn: true,
+      status: 'logged-in',
+    },
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+function requestCodexAppServer(method, params, timeoutMs = 8000) {
+  return new Promise((resolveRequest, rejectRequest) => {
+    const child = spawn('codex', ['app-server', '--listen', 'stdio://'], {
+      shell: process.platform === 'win32',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    })
+    let stdoutBuffer = ''
+    let stderrBuffer = ''
+    let nextId = 1
+    let settled = false
+    const pending = new Map()
+    const timer = setTimeout(() => {
+      finish(new Error('Codex app-server usage request timed out'))
+    }, timeoutMs)
+
+    const finish = (error, value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      stopProcessTree(child)
+      if (error) {
+        rejectRequest(error)
+        return
+      }
+      resolveRequest(value)
+    }
+
+    const sendRequest = (requestMethod, requestParams) => {
+      const id = nextId
+      nextId += 1
+      const payload = requestParams === undefined
+        ? { id, method: requestMethod }
+        : { id, method: requestMethod, params: requestParams }
+      const promise = new Promise((resolvePending, rejectPending) => {
+        pending.set(id, { resolve: resolvePending, reject: rejectPending })
+      })
+      child.stdin.write(`${JSON.stringify(payload)}\n`)
+      return promise
+    }
+
+    child.stdout.on('data', (chunk) => {
+      try {
+        stdoutBuffer = parseJsonLines(stdoutBuffer + chunk.toString(), (message) => {
+          if (!message || typeof message !== 'object' || !('id' in message)) return
+          const pendingRequest = pending.get(message.id)
+          if (!pendingRequest) return
+          pending.delete(message.id)
+          if (message.error) {
+            pendingRequest.reject(new Error(safePreview(message.error.message || JSON.stringify(message.error))))
+            return
+          }
+          pendingRequest.resolve(message.result)
+        })
+      } catch (error) {
+        finish(error)
+      }
+    })
+
+    child.stderr.on('data', (chunk) => {
+      stderrBuffer += chunk.toString()
+    })
+
+    child.on('error', (error) => {
+      finish(error)
+    })
+
+    child.on('close', (code) => {
+      if (!settled) finish(new Error(safePreview(stderrBuffer) || `Codex app-server exited with code ${code}`))
+    })
+
+    void (async () => {
+      try {
+        await sendRequest('initialize', {
+          clientInfo: { name: 'codex-live-assistant-mode', version: '0.0.0' },
+          capabilities: { experimentalApi: true },
+        })
+        const result = await sendRequest(method, params)
+        finish(undefined, result)
+      } catch (error) {
+        finish(error)
+      }
+    })()
+  })
+}
+
 function requireOpenRouterKey(settings) {
   const apiKey = settings.openrouter.apiKey
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured')
@@ -488,32 +670,23 @@ async function handleHealth(_request, response) {
 }
 
 async function handleCodexUsage(_request, response) {
-  const loginStatus = await execSafeCommand('codex', ['login', 'status'], 5000)
-  const loginSummary = `${loginStatus.stdout} ${loginStatus.stderr}`
-  const loggedIn = loginStatus.ok && !/\b(not logged in|logged out|no login)\b/i.test(loginSummary)
-
-  sendJson(response, 200, {
-    source: 'codex-cli',
-    available: false,
-    reason: 'Codex CLI does not expose remaining usage limits through a safe official command.',
-    fiveHour: {
-      label: '5h',
-      status: 'unavailable',
-      remaining: null,
-      resetAt: null,
-    },
-    weekly: {
-      label: 'Weekly',
-      status: 'unavailable',
-      remaining: null,
-      resetAt: null,
-    },
-    auth: {
-      loggedIn,
-      status: loggedIn ? 'logged-in' : 'unknown',
-    },
-    updatedAt: new Date().toISOString(),
-  })
+  try {
+    const result = await requestCodexAppServer('account/rateLimits/read', undefined, 8000)
+    const snapshot = pickCodexRateLimitSnapshot(result)
+    if (!snapshot) {
+      sendJson(response, 200, createUnavailableUsage('Codex app-server returned no rate limit snapshot.'))
+      return
+    }
+    sendJson(response, 200, createUsageFromRateLimitSnapshot(snapshot))
+  } catch (usageError) {
+    const loginStatus = await execSafeCommand('codex', ['login', 'status'], 5000)
+    const loginSummary = `${loginStatus.stdout} ${loginStatus.stderr}`
+    const loggedIn = loginStatus.ok && !/\b(not logged in|logged out|no login)\b/i.test(loginSummary)
+    sendJson(response, 200, createUnavailableUsage(
+      usageError instanceof Error ? usageError.message : 'Codex app-server usage request failed.',
+      { loggedIn, status: loggedIn ? 'logged-in' : 'unknown' },
+    ))
+  }
 }
 
 async function handleTranscribe(request, response) {

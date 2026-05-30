@@ -98,6 +98,110 @@ const activityStages: Array<{
   },
 ]
 
+const sttLanguageOptions = [
+  { code: '', label: 'Auto detect' },
+  { code: 'af', label: 'Afrikaans' },
+  { code: 'am', label: 'Amharic' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'as', label: 'Assamese' },
+  { code: 'az', label: 'Azerbaijani' },
+  { code: 'ba', label: 'Bashkir' },
+  { code: 'be', label: 'Belarusian' },
+  { code: 'bg', label: 'Bulgarian' },
+  { code: 'bn', label: 'Bengali' },
+  { code: 'bo', label: 'Tibetan' },
+  { code: 'br', label: 'Breton' },
+  { code: 'bs', label: 'Bosnian' },
+  { code: 'ca', label: 'Catalan' },
+  { code: 'cs', label: 'Czech' },
+  { code: 'cy', label: 'Welsh' },
+  { code: 'da', label: 'Danish' },
+  { code: 'de', label: 'German' },
+  { code: 'el', label: 'Greek' },
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'et', label: 'Estonian' },
+  { code: 'eu', label: 'Basque' },
+  { code: 'fa', label: 'Persian' },
+  { code: 'fi', label: 'Finnish' },
+  { code: 'fo', label: 'Faroese' },
+  { code: 'fr', label: 'French' },
+  { code: 'gl', label: 'Galician' },
+  { code: 'gu', label: 'Gujarati' },
+  { code: 'ha', label: 'Hausa' },
+  { code: 'haw', label: 'Hawaiian' },
+  { code: 'he', label: 'Hebrew' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'hr', label: 'Croatian' },
+  { code: 'ht', label: 'Haitian Creole' },
+  { code: 'hu', label: 'Hungarian' },
+  { code: 'hy', label: 'Armenian' },
+  { code: 'id', label: 'Indonesian' },
+  { code: 'is', label: 'Icelandic' },
+  { code: 'it', label: 'Italian' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'jw', label: 'Javanese' },
+  { code: 'ka', label: 'Georgian' },
+  { code: 'kk', label: 'Kazakh' },
+  { code: 'km', label: 'Khmer' },
+  { code: 'kn', label: 'Kannada' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'la', label: 'Latin' },
+  { code: 'lb', label: 'Luxembourgish' },
+  { code: 'ln', label: 'Lingala' },
+  { code: 'lo', label: 'Lao' },
+  { code: 'lt', label: 'Lithuanian' },
+  { code: 'lv', label: 'Latvian' },
+  { code: 'mg', label: 'Malagasy' },
+  { code: 'mi', label: 'Maori' },
+  { code: 'mk', label: 'Macedonian' },
+  { code: 'ml', label: 'Malayalam' },
+  { code: 'mn', label: 'Mongolian' },
+  { code: 'mr', label: 'Marathi' },
+  { code: 'ms', label: 'Malay' },
+  { code: 'mt', label: 'Maltese' },
+  { code: 'my', label: 'Myanmar' },
+  { code: 'ne', label: 'Nepali' },
+  { code: 'nl', label: 'Dutch' },
+  { code: 'nn', label: 'Nynorsk' },
+  { code: 'no', label: 'Norwegian' },
+  { code: 'oc', label: 'Occitan' },
+  { code: 'pa', label: 'Punjabi' },
+  { code: 'pl', label: 'Polish' },
+  { code: 'ps', label: 'Pashto' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'ro', label: 'Romanian' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'sa', label: 'Sanskrit' },
+  { code: 'sd', label: 'Sindhi' },
+  { code: 'si', label: 'Sinhala' },
+  { code: 'sk', label: 'Slovak' },
+  { code: 'sl', label: 'Slovenian' },
+  { code: 'sn', label: 'Shona' },
+  { code: 'so', label: 'Somali' },
+  { code: 'sq', label: 'Albanian' },
+  { code: 'sr', label: 'Serbian' },
+  { code: 'su', label: 'Sundanese' },
+  { code: 'sw', label: 'Swahili' },
+  { code: 'sv', label: 'Swedish' },
+  { code: 'ta', label: 'Tamil' },
+  { code: 'te', label: 'Telugu' },
+  { code: 'tg', label: 'Tajik' },
+  { code: 'th', label: 'Thai' },
+  { code: 'tk', label: 'Turkmen' },
+  { code: 'tl', label: 'Tagalog' },
+  { code: 'tr', label: 'Turkish' },
+  { code: 'tt', label: 'Tatar' },
+  { code: 'uk', label: 'Ukrainian' },
+  { code: 'ur', label: 'Urdu' },
+  { code: 'uz', label: 'Uzbek' },
+  { code: 'vi', label: 'Vietnamese' },
+  { code: 'yi', label: 'Yiddish' },
+  { code: 'yo', label: 'Yoruba' },
+  { code: 'yue', label: 'Cantonese' },
+  { code: 'zh', label: 'Chinese' },
+]
+
 type AudioPayload = {
   audioBase64: string
   mimeType: string
@@ -176,6 +280,19 @@ function formatUsageUpdated(value?: string) {
   return getTimeLabel(parsed)
 }
 
+function formatUsageValue(window?: { status: string; remaining?: string | null; remainingPercent?: number | null }) {
+  if (!window || window.status !== 'available') return 'Unavailable'
+  if (typeof window.remainingPercent === 'number') return `${window.remainingPercent}% left`
+  return window.remaining || 'Available'
+}
+
+function formatUsageReset(value?: string | null) {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return `Reset ${getTimeLabel(parsed)}`
+}
+
 function blobToBase64(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -233,10 +350,15 @@ function addActivity(
 ) {
   setActivity((current) => {
     const incomingActive = Boolean(item.active) && item.status !== 'done' && item.status !== 'error'
+    const hasLockedStage = current.some((entry) => (
+      entry.active &&
+      (entry.kind === 'searching' || entry.kind === 'tools') &&
+      entry.status !== 'done' &&
+      entry.status !== 'error'
+    ))
     const keepCurrentActive =
       item.kind === 'thinking' &&
-      item.source === 'codex' &&
-      current.some((entry) => entry.active && (entry.kind === 'searching' || entry.kind === 'tools'))
+      hasLockedStage
     const shouldActivate = incomingActive && !keepCurrentActive
 
     if (item.eventId) {
@@ -1383,10 +1505,13 @@ export function App() {
   ].filter(Boolean).join(' ')
 
   const activeSession = sessions.find((session) => session.appSessionId === appSessionId)
-  const fiveHourUsage = usage?.fiveHour.remaining || 'Unavailable'
-  const weeklyUsage = usage?.weekly.remaining || 'Unavailable'
+  const fiveHourUsage = formatUsageValue(usage?.fiveHour)
+  const weeklyUsage = formatUsageValue(usage?.weekly)
+  const fiveHourReset = formatUsageReset(usage?.fiveHour.resetAt)
+  const weeklyReset = formatUsageReset(usage?.weekly.resetAt)
   const usageUpdated = formatUsageUpdated(usage?.updatedAt)
-  const usageTooltip = usage?.reason || 'Checking Codex usage availability.'
+  const usageTooltip = usage?.reason || usage?.limitName || usage?.planType || 'Checking Codex usage availability.'
+  const usageDashboardUrl = usage?.dashboardUrl || 'https://chatgpt.com/codex/settings/usage'
 
   return (
     <main className="app-shell">
@@ -1411,13 +1536,20 @@ export function App() {
               <div>
                 <span>5h</span>
                 <strong>{fiveHourUsage}</strong>
+                {fiveHourReset ? <em>{fiveHourReset}</em> : null}
               </div>
               <div>
                 <span>Weekly</span>
                 <strong>{weeklyUsage}</strong>
+                {weeklyReset ? <em>{weeklyReset}</em> : null}
               </div>
             </div>
-            <small>Updated {usageUpdated}</small>
+            <small>
+              Updated {usageUpdated}
+              {!usage?.available ? (
+                <a href={usageDashboardUrl} rel="noreferrer" target="_blank">Usage dashboard</a>
+              ) : null}
+            </small>
           </div>
           <div className="status-row" aria-label="Connection status">
             {statusCards.map((card) => (
@@ -1678,14 +1810,19 @@ export function App() {
                     </label>
                     <label>
                       <span>STT language</span>
-                      <input
-                        placeholder="Optional"
+                      <select
                         value={settingsDraft.openrouter.sttLanguage}
                         onChange={(event) => setSettingsDraft((draft) => ({
                           ...draft,
                           openrouter: { ...draft.openrouter, sttLanguage: event.target.value },
                         }))}
-                      />
+                      >
+                        {sttLanguageOptions.map((option) => (
+                          <option key={option.code || 'auto'} value={option.code}>
+                            {option.label}{option.code ? ` (${option.code})` : ''}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                     <label>
                       <span>Text-to-speech model</span>

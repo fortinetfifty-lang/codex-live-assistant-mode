@@ -175,9 +175,25 @@ select {
   line-height: 1.1;
 }
 
-.usage-card small {
-  display: block;
+.usage-metrics em {
   color: #7f94a3;
+  font-size: 0.62rem;
+  font-style: normal;
+  line-height: 1.1;
+}
+
+.usage-card small {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  color: #7f94a3;
+}
+
+.usage-card a {
+  color: #62d8ff;
+  font-weight: 720;
+  text-decoration: none;
 }
 
 .icon-button,

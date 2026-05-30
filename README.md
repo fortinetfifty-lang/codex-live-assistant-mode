@@ -24,7 +24,7 @@ This project is not affiliated with OpenAI.
 - Chunked TTS playback so speech can start sooner.
 - Speech cleanup that avoids reading raw links and code blocks aloud.
 - Settings modal for voice, OpenRouter, Codex model, reasoning effort, workspace, sessions, and logout.
-- Best-effort Codex usage card. If the installed Codex CLI does not expose remaining limits, the UI shows `Unavailable` instead of guessing.
+- Codex usage card backed by the official local Codex app-server rate-limit protocol when available.
 
 ## Requirements
 
@@ -108,7 +108,9 @@ The Codex bridge starts Codex in read-only mode for new sessions:
 codex --search --ask-for-approval never exec --json --sandbox read-only --skip-git-repo-check
 ```
 
-The app does not read, copy, or parse Codex auth tokens, raw credential files, SQLite logs, or global state. Codex auth remains owned by the local Codex CLI.
+The app does not read, copy, or parse Codex auth tokens, raw credential files, SQLite logs, browser cookies, or global state. Codex auth remains owned by the local Codex CLI.
+
+Usage limits are read through the local Codex app-server `account/rateLimits/read` protocol. If that official surface fails or is unavailable, the UI links to the Codex usage dashboard instead of guessing.
 
 Ignored local data:
 
@@ -127,7 +129,7 @@ The app stores local session metadata under `.local/`. Codex session persistence
 - This is a turn-based live assistant, not a true realtime streaming voice stack.
 - STT and TTS quality depend on your selected OpenRouter models.
 - Codex JSON event formats may evolve; the activity feed normalizes events instead of showing raw payloads.
-- Codex remaining usage limits are shown only if the official CLI exposes them safely. Current fallback is `Unavailable`.
+- Codex remaining usage limits depend on the official app-server rate-limit protocol. If unavailable, the app shows a safe dashboard fallback.
 - Write-capable workspace mode is intentionally out of scope for the first public version.
 
 ## Disclaimer

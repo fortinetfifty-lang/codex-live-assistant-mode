@@ -18,7 +18,7 @@ flowchart LR
     TranscribeAPI["/api/transcribe"]
     CodexAPI["/api/codex/message\nNDJSON stream"]
     SpeechAPI["/api/speech"]
-    UsageAPI["/api/codex/usage"]
+    UsageAPI["/api/codex/usage\nCodex app-server rateLimits"]
     SettingsAPI["/api/settings\n/api/sessions"]
     Heartbeat["bridge heartbeat\nexpected search/tool stage"]
     Sessions[".local/sessions.json\n.local/settings.json"]
@@ -43,8 +43,8 @@ flowchart LR
   OpenRouterTTS -- audio --> SpeechAPI
   SpeechAPI -- chunked playback audio --> Audio
   Audio -- spoken answer --> User
-  UsageAPI -- official CLI status only --> CodexCLI
-  UsageAPI -- unavailable if not exposed --> UsageCard
+  UsageAPI -- "account/rateLimits/read" --> CodexCLI
+  UsageAPI -- "5h + weekly remaining or dashboard fallback" --> UsageCard
   SettingsAPI <--> Sessions
 ```
 
@@ -76,6 +76,6 @@ flowchart TB
 - The server binds to `127.0.0.1`.
 - The repository never stores provider keys.
 - Codex auth tokens are not read, copied, parsed, or transformed by the app.
-- Usage limits are not guessed from private files. If Codex CLI does not expose them safely, the UI says `Unavailable`.
+- Usage limits are read only through the official local app-server rate-limit protocol. Private auth files, logs, browser cookies, and dashboard scraping are out of scope.
 - Codex runs in read-only sandbox mode for new sessions.
 - Session metadata is stored under `.local/`, which is ignored by git.

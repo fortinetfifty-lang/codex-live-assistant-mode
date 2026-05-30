@@ -57,15 +57,26 @@ export type CodexUsageWindow = {
   label: string
   status: 'available' | 'unavailable'
   remaining?: string | null
+  usedPercent?: number | null
+  remainingPercent?: number | null
   resetAt?: string | null
+  windowDurationMins?: number | null
 }
 
 export type CodexUsageStatus = {
   source: string
   available: boolean
   reason?: string
+  dashboardUrl?: string
+  limitName?: string | null
+  planType?: string | null
+  rateLimitReachedType?: string | null
   fiveHour: CodexUsageWindow
   weekly: CodexUsageWindow
+  credits?: {
+    hasCredits: boolean
+    unlimited: boolean
+  } | null
   auth?: {
     loggedIn: boolean
     status?: string
